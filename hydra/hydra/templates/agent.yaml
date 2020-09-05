@@ -1,0 +1,54 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent
+  namespace: {{ .Release.Namespace}}
+  labels:
+  {{- include "prefect.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: agent
+  replicas: 1
+  template:
+    metadata:
+      namespace: {{ .Release.Namespace}}
+      labels:
+        app: agent
+    {{- include "prefect.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      containers:
+        - name: agent
+          image: "{{ .Values.registry_base }}worker-cpu:{{ .Values.images_version }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          resources:
+            requests:
+              cpu: {{.Values.agent.cpu}}
+              memory: {{.Values.agent.ram}}
+            limits:
+              cpu: "1"
+              memory: {{.Values.agent.ram}}
+          env:
+            - name: PREFECT__BACKEND
+              value: server
+            - name: PREFECT__SERVER__ENDPOINT
+              value: {{.Values.norma_graphql}}
+            - name: LANIAKEA_STORAGE
+              value: {{.Values.norma_storage}}
+            - name: PREFECT__CLOUD__AUTH_TOKEN
+              value: {{.Values.token}}
+            - name: PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS
+              value: prefect.engine.executors.DaskExecutor
+            - name: PREFECT__ENGINE__EXECUTOR__DASK__ADDRESS
+              value: "tcp://dask:8786"
+            {{- range $key, $value := .Values.env_vars }}
+            - name: "{{$key}}"
+              value: "{{$value}}"
+          {{- end  }}
+          args:
+            - 'poetry'
+            - 'run'
+            - 'lnk'
+            - 'agent'

@@ -1,0 +1,123 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dask-scheduler
+  namespace: {{ .Release.Namespace}}
+  labels:
+  {{- include "prefect.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: dask-scheduler
+  replicas: 1
+  template:
+    metadata:
+      namespace: {{ .Release.Namespace}}
+      labels:
+        app: dask-scheduler
+    {{- include "prefect.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      containers:
+        - name: scheduler
+          image: "{{ .Values.registry_base }}worker-cpu:{{ .Values.images_version }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          resources:
+            requests:
+              cpu: {{.Values.dask.scheduler.cpu}}
+              memory: {{.Values.dask.scheduler.ram}}
+            limits:
+              cpu: "1"
+              memory: {{.Values.dask.scheduler.ram}}
+          env:
+            - name: PREFECT__BACKEND
+              value: server
+            - name: PREFECT__SERVER__ENDPOINT
+              value: {{.Values.norma_graphql}}
+            - name: LANIAKEA_STORAGE
+              value: {{.Values.norma_storage}}
+            - name: PREFECT__CLOUD__AUTH_TOKEN
+              value: {{.Values.token}}
+            {{- range $key, $value := .Values.env_vars }}
+            - name: "{{$key}}"
+              value: "{{$value}}"
+          {{- end  }}
+          args:
+            - 'poetry'
+            - 'run'
+            - 'dask-scheduler'
+            - '--no-show'
+          ports:
+            - containerPort: 8786
+              name: dask
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dask
+  namespace: {{ .Release.Namespace}}
+  labels:
+  {{- include "prefect.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: 8786
+      name: dask
+  selector:
+    app: dask-scheduler
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dask-workers
+  namespace: {{ .Release.Namespace}}
+  labels:
+  {{- include "prefect.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: dask-workers
+  replicas: {{ .Values.dask.workers.count }}
+  template:
+    metadata:
+      namespace: {{ .Release.Namespace}}
+      labels:
+        app: dask-workers
+    {{- include "prefect.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      containers:
+        - name: worker
+          image: "{{ .Values.registry_base }}worker-cpu:{{ .Values.images_version }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          resources:
+            requests:
+              cpu: {{.Values.dask.workers.cpu}}
+              memory: {{.Values.dask.workers.ram}}
+            limits:
+              cpu: {{.Values.dask.workers.cpu}}
+              memory: {{.Values.dask.workers.maxRam}}
+          env:
+            - name: PREFECT__BACKEND
+              value: server
+            - name: PREFECT__SERVER__ENDPOINT
+              value: {{.Values.norma_graphql}}
+            - name: LANIAKEA_STORAGE
+              value: {{.Values.norma_storage}}
+            - name: PREFECT__CLOUD__AUTH_TOKEN
+              value: {{.Values.token}}
+            {{- range $key, $value := .Values.env_vars }}
+            - name: "{{$key}}"
+              value: "{{$value}}"
+          {{- end  }}
+          args:
+            - 'poetry'
+            - 'run'
+            - 'dask-worker'
+            - '--nthreads'
+            - '4'
+            - '--memory-limit'
+            - {{.Values.dask.workers.memlimit}}
+            - 'tcp://dask:8786'
+            - '--resources'
+            - 'CPU=1'

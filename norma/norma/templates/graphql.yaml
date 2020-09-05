@@ -1,0 +1,63 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graphql
+  namespace: {{ .Release.Namespace}}
+spec:
+  selector:
+    matchLabels:
+      app: graphql
+  replicas: {{ .Values.graphql.count }}
+  template:
+    metadata:
+      namespace: {{ .Release.Namespace}}
+      labels:
+        app: graphql
+    {{- include "prefect.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      initContainers:
+        - name: wait
+          image: "{{ .Values.registry_base }}wait:{{ .Values.images_version }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          env:
+            - name: NAMESPACE
+              value: {{ .Release.Namespace}}
+      containers:
+        - name: graphql
+          image: "{{ .Values.registry_base }}server:{{ .Values.images_version }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          resources:
+            requests:
+              cpu: {{.Values.graphql.cpu}}
+              memory: {{.Values.graphql.ram}}
+            limits:
+              cpu: "1"
+              memory: {{.Values.graphql.ram}}
+          args:
+            - python3
+            - /opt/server/src/prefect_server/services/graphql/server.py
+          env:
+            - name: PREFECT_SERVER__HASURA__HOST
+              value: hasura
+            - name: PREFECT_SERVER__DATABASE__CONNECTION_URL
+              value: postgres://postgres:{{.Values.sql.postgres_passwd}}@sql:5432/postgres
+          ports:
+            - containerPort: 4201
+              name: graphql
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: graphql
+  namespace: {{ .Release.Namespace}}
+  labels:
+    app: graphql
+  {{- include "prefect.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: 4201
+      name: graphql
+  selector:
+    app: graphql

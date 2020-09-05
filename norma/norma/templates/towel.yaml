@@ -1,0 +1,45 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: towel
+  namespace: {{ .Release.Namespace}}
+spec:
+  selector:
+    matchLabels:
+      app: towel
+  replicas: 1
+  template:
+    metadata:
+      namespace: {{ .Release.Namespace}}
+      labels:
+        app: towel
+    {{- include "prefect.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      initContainers:
+        - name: wait
+          image: "{{ .Values.registry_base }}wait:{{ .Values.images_version }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          env:
+            - name: NAMESPACE
+              value: {{ .Release.Namespace}}
+      containers:
+        - name: towel
+          image: "{{ .Values.registry_base }}server:{{ .Values.images_version }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          resources:
+            requests:
+              cpu: {{.Values.scheduler.cpu}}
+              memory: {{.Values.scheduler.ram}}
+            limits:
+              cpu: "1"
+              memory: {{.Values.scheduler.ram}}
+          args:
+            - python3
+            - /opt/server/src/prefect_server/services/towel/__main__.py
+          env:
+            - name: PREFECT_SERVER__HASURA__HOST
+              value: hasura
+            - name: PREFECT_SERVER__SERVICES__SCHEDULER__SCHEDULER_LOOP_SECONDS
+              value: "10"

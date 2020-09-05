@@ -1,0 +1,48 @@
+registry_base: 'laniakea/'
+images_version: 0.2.2
+imagePullPolicy: Never
+env: dev
+envcolor: green
+
+ui:
+  count: 1
+  cpu: 125m
+  ram: 128Mi
+  htpasswd: ""
+  token_key: ""
+  debug: false
+
+upgrade_db: false
+
+storage:
+  count: 1
+  cpu: 125m
+  ram: 128Mi
+  bucket: ""
+
+scheduler:
+  cpu: 125m
+  ram: 512Mi
+
+hasura:
+  cpu: 250m
+  ram: 256Mi
+  console: false
+
+apollo:
+  count: 1
+  cpu: 250m
+  ram: 512Mi
+
+graphql:
+  count: 1
+  cpu: 125m
+  ram: 512Mi
+
+sql:
+  internal: true
+  postgres_passwd: postgres
+  cpu: 500m
+  ram: 256Mi
+  drive: 10Gi
+  externalAddress: N/A

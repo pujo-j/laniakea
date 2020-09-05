@@ -1,0 +1,87 @@
+{{ if or .Release.IsInstall .Values.upgrade_db }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: install-db
+  namespace: {{ .Release.Namespace}}
+  annotations:
+    "helm.sh/hook": post-install, post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+    "helm.sh/hook-weight": "-5"
+spec:
+  template:
+    metadata:
+      namespace: {{ .Release.Namespace}}
+      labels:
+    {{- include "prefect.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      restartPolicy: OnFailure
+      containers:
+        - name: install-db
+          image: "{{ .Values.registry_base }}server:{{ .Values.images_version }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          resources:
+            requests:
+              cpu: 125m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 128Mi
+          args:
+            - bash
+            - -c
+            - "cd /opt/server && prefect-server database upgrade -y"
+          env:
+            - name: PREFECT_SERVER__HASURA__HOST
+              value: hasura
+            - name: PREFECT_SERVER__DATABASE__CONNECTION_URL
+              value: postgres://postgres:{{.Values.sql.postgres_passwd}}@sql:5432/postgres
+{{end}}
+---
+{{ if .Release.IsInstall }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-default-tenant
+  namespace: {{ .Release.Namespace}}
+  annotations:
+    "helm.sh/hook": post-install, post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+    "helm.sh/hook-weight": "5"
+spec:
+  template:
+    metadata:
+      namespace: {{ .Release.Namespace}}
+      labels:
+    {{- include "prefect.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      restartPolicy: OnFailure
+      containers:
+        - name: create-default-tenant
+          image: "{{ .Values.registry_base }}server:{{ .Values.images_version }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          resources:
+            requests:
+              cpu: 125m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 128Mi
+          args:
+            - python3
+            - -c
+            - |
+              import prefect
+
+              c = prefect.Client()
+              if not c.get_available_tenants():
+                c.create_tenant(name="default")
+          env:
+            - name: PREFECT__SERVER__ENDPOINT
+              value: http://apollo:4200
+            - name: PREFECT__BACKEND
+              value: server
+{{end}}

@@ -1,0 +1,95 @@
+{{ if .Values.sql.internal }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sql
+  namespace: {{ .Release.Namespace}}
+spec:
+  selector:
+    matchLabels:
+      app: sql
+  serviceName: "sql"
+  replicas: 1
+  template:
+    metadata:
+      namespace: {{ .Release.Namespace}}
+      labels:
+        app: sql
+    {{- include "prefect.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      containers:
+        - name: sql
+          image: "{{ .Values.registry_base }}sql:{{ .Values.images_version }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          resources:
+            requests:
+              cpu: {{.Values.sql.cpu}}
+              memory: {{.Values.sql.ram}}
+            limits:
+              cpu: "1"
+              memory: {{.Values.sql.ram}}
+          env:
+            - name: PGDATA
+              value: /data
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.sql.postgres_passwd }}
+          ports:
+            - containerPort: 5432
+              name: sql
+          volumeMounts:
+            - name: sql-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: sql-data
+        namespace: {{ .Release.Namespace}}
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.sql.drive }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sql
+  namespace: {{ .Release.Namespace}}
+  labels:
+    app: sql
+  {{- include "prefect.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: 5432
+      name: sql
+  selector:
+    app: sql
+{{ else }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sql
+  namespace: {{.Release.Namespace}}
+  labels:
+    app: sql
+  {{- include "prefect.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: 5432
+      name: sql
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: sql
+  namespace: {{.Release.Namespace}}
+  labels:
+  {{- include "prefect.labels" . | nindent 4 }}
+subsets:
+  - addresses:
+      - ip: {{.Values.sql.externalAddress}}
+{{end}}

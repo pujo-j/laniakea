@@ -1,0 +1,59 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hasura
+  namespace: {{ .Release.Namespace}}
+spec:
+  selector:
+    matchLabels:
+      app: hasura
+  replicas: 1
+  template:
+    metadata:
+      namespace: {{ .Release.Namespace}}
+      labels:
+        app: hasura
+    {{- include "prefect.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      containers:
+        - name: hasura
+          image: "{{ .Values.registry_base }}hasura:{{ .Values.images_version }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          resources:
+            requests:
+              cpu: {{.Values.hasura.cpu}}
+              memory: {{.Values.hasura.ram}}
+            limits:
+              cpu: "1"
+              memory: {{.Values.hasura.ram}}
+          env:
+            - name: HASURA_GRAPHQL_DATABASE_URL
+              value: postgres://postgres:{{.Values.sql.postgres_passwd}}@sql:5432/postgres
+            - name: HASURA_GRAPHQL_SERVER_PORT
+              value: "3000"
+            - name: HASURA_GRAPHQL_QUERY_PLAN_CACHE_SIZE
+              value: "100"
+            {{ if .Values.hasura.console}}
+            - name: HASURA_GRAPHQL_ENABLE_CONSOLE
+              value: "true"
+            {{end}}
+          ports:
+            - containerPort: 3000
+              name: hasura
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hasura
+  namespace: {{ .Release.Namespace}}
+  labels:
+    app: hasura
+  {{- include "prefect.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: 3000
+      name: hasura
+  selector:
+    app: hasura

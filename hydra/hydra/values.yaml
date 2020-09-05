@@ -1,0 +1,26 @@
+registry_base: 'laniakea/'
+images_version: 0.2.2
+norma_graphql: ""
+norma_storage: ""
+token: ""
+
+env_vars: {}
+
+agent:
+  count: 1
+  cpu: 250m
+  ram: 512Mi
+  verbose: false
+  labels:
+    - default
+
+dask:
+  scheduler:
+    cpu: 250m
+    ram: 512Mi
+  workers:
+    count: 1
+    cpu: 1
+    ram: 512Mi
+    maxRam: 1Gi
+    memlimit: 900Mi

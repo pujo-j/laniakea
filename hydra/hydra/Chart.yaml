@@ -1,0 +1,8 @@
+apiVersion: v2
+name: hydra
+description: Helm chart for the laniakea hydra executor
+
+type: application
+version: 0.2.2
+appVersion: 0.13.1
+
