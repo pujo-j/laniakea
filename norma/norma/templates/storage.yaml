@@ -1,0 +1,60 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storage
+  namespace: {{ .Release.Namespace}}
+spec:
+  selector:
+    matchLabels:
+      app: storage
+  replicas: {{.Values.storage.count}}
+  template:
+    metadata:
+      namespace: {{ .Release.Namespace}}
+      labels:
+        app: storage
+    {{- include "prefect.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      initContainers:
+        - name: wait
+          image: "{{ .Values.registry_base }}wait:{{ .Values.images_version }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          env:
+            - name: NAMESPACE
+              value: {{ .Release.Namespace}}
+      containers:
+        - name: storage
+          image: "{{ .Values.registry_base }}storage:{{ .Values.images_version }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          resources:
+            requests:
+              cpu: {{.Values.storage.cpu}}
+              memory: {{.Values.storage.ram}}
+            limits:
+              cpu: "1"
+              memory: {{.Values.storage.ram}}
+          env:
+            - name: DB_URL
+              value: postgres://postgres:{{.Values.sql.postgres_passwd}}@sql:5432/postgres
+            - name: BUCKET_URL
+              value: "{{ .Values.storage.bucket}}"
+          ports:
+            - containerPort: 8080
+              name: storage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: storage
+  namespace: {{ .Release.Namespace}}
+  labels:
+    app: storage
+  {{- include "prefect.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: 8080
+      name: storage
+  selector:
+    app: storage

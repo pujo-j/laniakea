@@ -1,0 +1,8 @@
+apiVersion: v2
+name: norma
+description: Helm chart for the laniakea norma orchestrator
+
+type: application
+version: 0.2.2
+appVersion: 0.13.1
+

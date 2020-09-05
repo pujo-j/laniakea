@@ -1,0 +1,71 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ui
+  namespace: {{ .Release.Namespace}}
+spec:
+  selector:
+    matchLabels:
+      app: ui
+  replicas: {{.Values.ui.count}}
+  template:
+    metadata:
+      namespace: {{ .Release.Namespace}}
+      labels:
+        app: ui
+    {{- include "prefect.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      containers:
+        - name: ui
+          image: "{{ .Values.registry_base }}ui:{{ .Values.images_version }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          resources:
+            requests:
+              cpu: {{.Values.ui.cpu}}
+              memory: {{.Values.ui.ram}}
+            limits:
+              cpu: "1"
+              memory: {{.Values.ui.ram}}
+          env:
+            - name: DB_URL
+              value: postgres://postgres:{{.Values.sql.postgres_passwd}}@sql:5432/postgres
+            - name: GRAPHQL_SERVER
+              value: http://apollo:4200/
+            - name: STORAGE_SERVER
+              value: http://storage:8080/
+            - name: AUTH_TOKEN_KEY
+              value: {{ .Values.ui.token_key}}
+            - name: ENV
+              value: {{ .Values.env}}
+            - name: ENV_COLOR
+              value: {{ .Values.envcolor}}
+            {{- if .Values.ui.debug}}
+            - name: DEBUG
+              value: "True"
+            {{- end}}
+            {{- if ne .Values.ui.htpasswd ""}}
+            - name: SIMPLE_AUTH
+              value: {{ .Values.ui.htpasswd }}
+            {{- end}}
+          ports:
+            - containerPort: 8080
+              name: ui
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ui
+  namespace: {{ .Release.Namespace}}
+  labels:
+    app: ui
+  {{- include "prefect.labels" . | nindent 4 }}
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      name: ui
+      nodePort: 32080
+  selector:
+    app: ui

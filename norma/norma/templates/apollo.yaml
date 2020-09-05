@@ -1,0 +1,62 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apollo
+  namespace: {{ .Release.Namespace}}
+spec:
+  selector:
+    matchLabels:
+      app: apollo
+  replicas: {{ .Values.apollo.count}}
+  template:
+    metadata:
+      namespace: {{ .Release.Namespace}}
+      labels:
+        app: apollo
+    {{- include "prefect.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      initContainers:
+        - name: wait
+          image: "{{ .Values.registry_base }}wait:{{ .Values.images_version }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          env:
+            - name: NAMESPACE
+              value: {{ .Release.Namespace}}
+      containers:
+        - name: apollo
+          image: "{{ .Values.registry_base }}apollo:{{.Values.images_version}}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          resources:
+            requests:
+              cpu: {{.Values.apollo.cpu}}
+              memory: {{.Values.apollo.ram}}
+            limits:
+              cpu: "1"
+              memory: {{.Values.apollo.ram}}
+          env:
+            - name: HASURA_API_URL
+              value: http://hasura:3000/v1alpha1/graphql
+            - name: PREFECT_API_URL
+              value: http://graphql:4201/graphql/
+            - name: PREFECT_API_HEALTH_URL
+              value: http://graphql:4201/health
+          ports:
+            - containerPort: 4200
+              name: apollo
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apollo
+  namespace: {{ .Release.Namespace}}
+  labels:
+    app: apollo
+  {{- include "prefect.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: 4200
+      name: apollo
+  selector:
+    app: apollo
