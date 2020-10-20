@@ -17,7 +17,7 @@ docker run -p 3000:3000 pujoj/laniakea-dev:0.2.2
 Which will expose a web UI based on visual studio code, with a preconfigured hydra dev environment to create and test pipelines on http://localhost:3000/
 Inside this environment you can write prefect based pipelines using all [available hydra libraries](https://github.com/pujo-j/laniakea/blob/master/hydra/lib/README.md)
 
-To devlop pipelines, follow the [Prefect core doc](https://docs.prefect.io/core/)
+To devlop pipelines, follow the [Prefect core doc](https://docs.prefect.io/core/), but don't worry about [executors](https://docs.prefect.io/core/concepts/engine.html#executors) and [flow storage](https://docs.prefect.io/orchestration/execution/storage_options.html) the laniakea server will override the LocalExecutor and default local storage with a distributed Dask executor and managed cloud flow storage.
 
 ## Using Task Libraries
 
